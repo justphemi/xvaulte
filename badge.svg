@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40">
+  <rect width="160" height="40" rx="6" fill="#1565C0"/>
+  <text x="50%" y="14" font-family="Arial,sans-serif" font-size="9" fill="white" text-anchor="middle" font-weight="bold">VAULTE VERIFIED</text>
+  <text x="50%" y="28" font-family="Arial,sans-serif" font-size="10" fill="white" text-anchor="middle">Basic Verified</text>
+  <text x="50%" y="38" font-family="Arial,sans-serif" font-size="8" fill="rgba(255,255,255,0.85)" text-anchor="middle">Score: 46/100</text>
+</svg>
