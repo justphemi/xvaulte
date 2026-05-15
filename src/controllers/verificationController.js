@@ -440,6 +440,8 @@ async function getSessionByToken(req, res, next) {
  * against what the user submitted. face_match runs here too — the selfie
  * from liveness is NOT yet available, so face_match is deferred to liveness.
  */
+
+
 async function submitIdentity(req, res, next) {
   try {
     const { token } = req.params;
@@ -451,19 +453,15 @@ async function submitIdentity(req, res, next) {
       return error(res, 'Verification session has expired', 410);
     }
 
-    // Don't allow re-submission if identity already passed
     if (session.data?.identity?.identity_passed === true) {
       return error(res, 'Identity has already been verified for this session', 409);
     }
 
-    const identityResult = await aiService.verifyIdentity(session.id, { 
-      nin,
-      first_name,
-      middle_name,
-      last_name,
-      dob: date_of_birth,
+    const identityResult = await aiService.verifyIdentity(
+      session.id,
+      { nin, first_name, middle_name, last_name, date_of_birth },
       selfie_image
-    });
+    );
 
     if (!identityResult.success) {
       return error(res, identityResult.error ?? 'Identity verification service unavailable', 503);
@@ -471,11 +469,10 @@ async function submitIdentity(req, res, next) {
 
     const identityPassed = identityResult.data?.identity_passed === true;
 
-    // Store result regardless of pass/fail so completeSession can read it
     await verificationRepo.updateData(session.id, {
       identity: {
         ...identityResult.data,
-        submitted: { nin, first_name, middle_name, last_name, dob },
+        submitted: { nin, first_name, middle_name, last_name, dob: date_of_birth },
         submitted_at: new Date(),
       }
     });
@@ -487,8 +484,6 @@ async function submitIdentity(req, res, next) {
         data_match: identityResult.data?.data_match,
       });
 
-      // Return the result but do NOT advance the session —
-      // client should show the specific failure reason so user can retry
       return success(res, {
         identity_passed: false,
         nin_valid: identityResult.data?.nin_valid ?? false,
@@ -506,11 +501,11 @@ async function submitIdentity(req, res, next) {
       identity_score: identityResult.data?.identity_score,
       message: identityResult.data?.message,
     }, 'Identity verified — proceed to liveness check');
+
   } catch (err) {
     next(err);
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP 2: Liveness (camera challenge + selfie capture)
@@ -715,65 +710,7 @@ async function verifyVoice(req, res, next) {
  * Public: Finalize verification and trigger webhook.
  * POST /v1/verify/session/:token/complete
  */
-// async function completeSession(req, res, next) {
-//   try {
-//     const { token } = req.params;
-//     const session = await verificationRepo.findByToken(token);
-//     if (!session) return notFound(res, 'Session');
 
-//     // Guard: all three steps must have run before completion is allowed
-//     const identityPassed = session.data?.identity?.identity_passed === true;
-//     const livenessPassed = session.data?.liveness?.liveness_passed === true;
-//     const voicePassed = session.data?.voice?.voice_passed === true;
-
-//     if (!identityPassed) {
-//       return error(res, 'Identity verification has not been completed', 400);
-//     }
-//     if (!livenessPassed) {
-//       return error(res, 'Liveness check has not been completed', 400);
-//     }
-//     if (!voicePassed) {
-//       return error(res, 'Voice challenge has not been completed', 400);
-//     }
-
-//     const overallPassed = true; // all three guards above ensure this
-
-//     const resultData = {
-//       status: 'completed',
-//       identity: session.data.identity,
-//       liveness: session.data.liveness,
-//       voice: session.data.voice,
-//       overall_passed: overallPassed,
-//     };
-
-//     await verificationRepo.updateStatus(session.id, 'completed', resultData);
-
-//     // Fire webhook (non-blocking)
-//     const partner = await db.query(
-//       'SELECT webhook_url, webhook_secret FROM b2b_partners WHERE id = $1',
-//       [session.partner_id]
-//     );
-//     if (partner.rowCount > 0 && partner.rows[0].webhook_url) {
-//       webhookService.sendWebhook(
-//         partner.rows[0].webhook_url,
-//         partner.rows[0].webhook_secret,
-//         'verification.completed',
-//         {
-//           session_id: session.id,
-//           external_user_id: session.external_user_id,
-//           status: resultData.status,
-//           result: resultData,
-//         }
-//       ).catch(err =>
-//         logger.error('Webhook async dispatch failed', { session_id: session.id, error: err.message })
-//       );
-//     }
-
-//     return success(res, resultData, 'Verification completed successfully');
-//   } catch (err) {
-//     next(err);
-//   }
-// }
 async function completeSession(req, res, next) {
   try {
     const { token } = req.params;

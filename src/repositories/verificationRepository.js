@@ -13,12 +13,25 @@ async function create({ id, partner_id, external_user_id, session_token, callbac
   return result.rows[0];
 }
 
+// async function findByToken(token) {
+//   const result = await db.query(
+//     `SELECT * FROM verification_sessions WHERE session_token = $1`,
+//     [token]
+//   );
+//   return result.rows[0];
+// }
+
 async function findByToken(token) {
   const result = await db.query(
     `SELECT * FROM verification_sessions WHERE session_token = $1`,
     [token]
   );
-  return result.rows[0];
+  const row = result.rows[0];
+  if (!row) return null;
+
+  // Map verification_data → data so controllers can use session.data
+  row.data = row.verification_data ?? {};
+  return row;
 }
 
 async function updateStatus(id, status, data = null) {

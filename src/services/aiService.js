@@ -276,12 +276,13 @@ async function verifyIdentity(sessionId, identityData, selfieBase64) {
       nin: identityData.nin,
       first_name: identityData.first_name,
       last_name: identityData.last_name,
-      date_of_birth: identityData.dob,
+      date_of_birth: identityData.date_of_birth,
       selfie_image: selfieBase64,
-    });
+    }, {timeout: 100000 });
     return { success: true, data: response.data };
   } catch (err) {
     logger.error('AI identity verification failed', { session_id: sessionId, error: err.message });
+    console.error(err)
     return { success: false, error: err.message };
   }
 }

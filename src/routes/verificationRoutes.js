@@ -20,6 +20,8 @@ router.post(
     body('nin').notEmpty().isLength({ min: 11, max: 11 }),
     body('first_name').notEmpty(),
     body('last_name').notEmpty(),
+    body('date_of_birth').notEmpty(),
+    body('selfie_image').notEmpty(),
   ],
   validate,
   verificationController.submitIdentity
