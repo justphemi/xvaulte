@@ -338,3 +338,4 @@ This document should be used as the contract between the Node.js backend and the
 # vibes
 # justvibez
 # xvaulte
+# xvaulte
