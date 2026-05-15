@@ -7,9 +7,10 @@ const logger = require('../utils/logger');
 const pool = new Pool({
   connectionString: env.db.url,
   ssl: env.db.ssl ? { rejectUnauthorized: false } : false,
-  max: 20,
-  idleTimeoutMillis: 600000,       
-  connectionTimeoutMillis: 30000, 
+  max: 10,
+  min: 2,
+  idleTimeoutMillis: 30000,       
+  connectionTimeoutMillis: 10000, 
   keepAlive: true,                 
   keepAliveInitialDelayMillis: 10000, 
 });
@@ -70,7 +71,7 @@ setInterval(async () => {
   } catch (err) {
     logger.warn('Pool health check failed', { error: err.message });
   }
-}, 60000); 
+}, 4 * 60 * 1000); 
 
 async function executeWithRetry(dbOperation, maxRetries = 3) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {

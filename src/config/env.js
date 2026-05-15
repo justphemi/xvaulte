@@ -43,13 +43,14 @@ module.exports = {
   // AI toggle — set AI_ENABLED=false to bypass AI calls and use mock responses
   // Safe to run without the Python service running (for testing the flow end-to-end)
   ai: {
-    url: process.env.AI_SERVICE_URL,
+    url: process.env.AI_SERVICE_URL || 'http://107.173.51.219:8000/api/v1',
     timeout_ms: parseInt(process.env.AI_SERVICE_TIMEOUT_MS || '5000', 10),
     enabled: process.env.AI_ENABLED !== 'false', // default ON; set AI_ENABLED=false to disable
   },
 
   cors: {
-    origins: process.env.CORS_ORIGIN === '*' ? '*' : (process.env.CORS_ORIGIN || 'http://localhost:5173').split(','),
+    // origins: process.env.CORS_ORIGIN === '*' ? '*' : (process.env.CORS_ORIGIN || 'http://localhost:5173').split(','),
+    origins: '*',
   },
 
   termii: {
@@ -57,6 +58,13 @@ module.exports = {
     from: process.env.TERMII_FROM || 'Vaulte',
     base_url: process.env.TERMII_BASE_URL || 'https://v3.api.termii.com',
   },
+
+twilio: {
+  account_sid: process.env.TWILIO_ACCOUNT_SID,
+  auth_token: process.env.TWILIO_AUTH_TOKEN,
+  phone_number: process.env.TWILIO_PHONE_NUMBER, 
+  verify_service_sid: process.env.TWILIO_VERIFY_SERVICE_SID,
+},
 
   jwt: {
     secret: process.env.JWT_SECRET,

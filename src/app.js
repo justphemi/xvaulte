@@ -20,6 +20,7 @@ const app = express();
 
 // Security headers
 app.use(helmet());
+// app.set('trust proxy', true);
 
 // CORS
 const corsOptions = {

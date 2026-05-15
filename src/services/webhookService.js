@@ -39,7 +39,7 @@ async function sendWebhook(partnerId, event, payload) {
       partner_id: partnerId, 
       event, 
       url: partner.callback_url 
-    });
+    }); 
 
     await axios.post(partner.callback_url, webhookPayload, {
       headers: {

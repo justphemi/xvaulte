@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 
 const termiiClient = axios.create({
   baseURL: env.termii.base_url, // https://v3.api.termii.com
-  timeout: 10000,
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
 

@@ -4,74 +4,91 @@ const env = require('../config/env');
 const logger = require('../utils/logger');
 
 const termiiClient = axios.create({
-  baseURL: 'https://v3.api.termii.com/api/',
-  timeout: 10000,
+  baseURL: 'https://v3.api.termii.com',
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
 
 async function sendSms(to, message) {
   if (!env.termii.api_key) {
-    logger.warn('Termii API key not configured. SMS skipped.', { to });
-    return { skipped: true };
+    logger.warn('Termii API key not configured. SMS not sent.', { to });
+    return { skipped: true, success: false };
   }
 
   const cleanPhone = to.replace(/^\+/, '');
 
   try {
-    const response = await termiiClient.post('/sms/number/send', {
+    const response = await termiiClient.post('/api/sms/send', {
       api_key: env.termii.api_key,
       to: cleanPhone,
+      from: env.termii.from || 'N-Alert',
       sms: message,
+      type: 'plain',
+      channel: 'generic',
     });
 
-    logger.info('SMS sent', { to: cleanPhone, balance: response.data?.balance });
+    logger.info('SMS sent', { to: cleanPhone, message_id: response.data?.message_id });
     return { success: true, data: response.data };
 
   } catch (err) {
     logger.error('SMS send failed', {
       to: cleanPhone,
       error: err.message,
+      code: err.code,
       response: err.response?.data,
       status: err.response?.status,
     });
-    return { success: false, error: err.message };
+    return { success: false, error: err.response?.data?.message || err.message };
   }
 }
 
 async function sendOtp(phone, otpCode) {
-  if (!env.termii.api_key) {
-    logger.warn('Termii API key not configured. OTP skipped.', { phone });
-    return { skipped: true };
-  }
-
   const cleanPhone = phone.replace(/^\+/, '');
 
+  const message = `Your Vaulte verification code is ${otpCode}. Valid for 10 minutes.`;
+
+  const response = await termiiClient.post('/api/sms/send', {
+    api_key: env.termii.api_key,
+    to: cleanPhone,
+    from: 'N-Alert',
+    sms: message,
+    type: 'plain',
+    channel: 'generic',
+  });
+
+  return response.data;
+}
+
+// Alternative: If the above doesn't work, try the simple SMS approach
+async function sendOtpViaSms(phone, otpCode) {
+  if (!env.termii.api_key) {
+    logger.warn('Termii API key not configured. OTP not sent.', { phone });
+    return { skipped: true, success: false };
+  }
+
+  console.log({"OTPCODE": otpCode})
+  const cleanPhone = phone.replace(/^\+/, '');
+  const message = `Your Vaulte verification code is: ${otpCode}. Valid for 10 minutes.`;
+
   try {
-    const response = await termiiClient.post('/sms/otp/send', {
+    const response = await termiiClient.post('/api/sms/send', {
       api_key: env.termii.api_key,
-      message_type: 'NUMERIC',
       to: cleanPhone,
-      from: 'N-Alert',    // ✅ safe default until "Vaulte" sender ID is approved
-      channel: 'dnd',     // ✅ required for Nigerian numbers
-      pin_attempts: 3,
-      pin_time_to_live: 10,
-      pin_length: 6,
-      pin_placeholder: '< 123456 >',
-      message_text: 'Your Vaulte verification code is < 123456 >. Valid for 10 minutes.',
-      pin_code: otpCode,
+      from: 'N-Alert', 
+      sms: message,
+      type: 'plain',
+      channel: 'dnd',
     });
 
-    logger.info('OTP sent', { to: cleanPhone, pinId: response.data?.pinId });
+    logger.info('OTP sent via SMS', { to: cleanPhone });
     return { success: true, data: response.data };
 
   } catch (err) {
-    logger.error('OTP send failed', {
-      to: cleanPhone,
-      error: err.message,
-      response: err.response?.data,
-      status: err.response?.status,
+    logger.error('OTP via SMS failed:', {
+      phone: cleanPhone,
+      error: err.response?.data || err.message
     });
-    return { success: false, error: err.message };
+    return { success: false, error: err.response?.data?.message || err.message };
   }
 }
 
@@ -79,7 +96,7 @@ async function sendDeliveryConfirmationLink(phone, token, vendorName, amount) {
   const confirmUrl = `${env.app.buyer_portal_url}/confirm/${token}`;
   const message =
     `Your order of NGN ${Number(amount).toLocaleString('en-NG')} from ${vendorName} is secured in escrow. ` +
-    `Confirm delivery here: ${confirmUrl} (Link expires in ${env.escrow.auto_confirm_hours} hours).`;
+    `Confirm delivery here: ${confirmUrl} (Link expires in ${env.escrow.auto_confirm_hours} hours)`;
   return sendSms(phone, message);
 }
 
@@ -99,7 +116,8 @@ async function sendFundsReleasedNotification(phone, amount) {
 
 module.exports = {
   sendSms,
-  sendOtp,                       
+  sendOtp,
+  sendOtpViaSms,  // Export the alternative method
   sendDeliveryConfirmationLink,
   sendEscrowCreatedNotification,
   sendFundsReleasedNotification,

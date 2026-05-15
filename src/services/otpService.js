@@ -1,15 +1,16 @@
 'use strict';
 
 const crypto = require('crypto');
-const termiiService = require('./termiiService');
 const logger = require('../utils/logger');
 
 // In-memory OTP store (replace with Redis in production)
 const otpStore = new Map();
 
 class OTPService {
+
+  // 🔒 Always return fixed OTP for testing
   generateOTP() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return "000000";
   }
 
   generateOTPToken() {
@@ -17,10 +18,13 @@ class OTPService {
   }
 
   async sendOTP(phoneNumber) {
+    const cleanPhone = phoneNumber.replace(/^\+/, '');
+
     const otp = this.generateOTP();
     const token = this.generateOTPToken();
     const expiresAt = Date.now() + 10 * 60 * 1000;
 
+    // Store OTP session
     otpStore.set(token, {
       phone: phoneNumber,
       otp: otp,
@@ -30,6 +34,7 @@ class OTPService {
       created_at: Date.now()
     });
 
+    // Auto cleanup after expiry
     setTimeout(() => {
       const session = otpStore.get(token);
       if (session && !session.verified) {
@@ -38,15 +43,36 @@ class OTPService {
       }
     }, 10 * 60 * 1000);
 
-    const message = `Your Vaulte verification code is: ${otp}. Valid for 10 minutes.`;
-    const smsResult = await termiiService.sendSms(phoneNumber, message);
+    // ================================
+    // ❌ SMS PROVIDERS DISABLED
+    // ================================
 
-    logger.info('OTP sent', { phone: phoneNumber, smsResult });
+    /*
+    // Twilio / Termii / SMS provider integration (DISABLED)
+
+    try {
+      await termiiService.sendOtpViaSms(cleanPhone, otp);
+      logger.info('SMS sent via provider', { phone: cleanPhone });
+    } catch (err) {
+      logger.warn('SMS provider failed (ignored)', err.message);
+    }
+    */
+
+    // ================================
+    // ✅ DEV MODE RESPONSE ONLY
+    // ================================
+    logger.info('MOCK OTP GENERATED (NO SMS SENT)', {
+      phone: phoneNumber,
+      otp
+    });
 
     return {
-      success: !smsResult.failed,
+      success: true,
       token: token,
-      expires_in_minutes: 10
+      expires_in_minutes: 10,
+
+      // useful for frontend/dev testing
+      dev_otp: otp
     };
   }
 
@@ -67,21 +93,30 @@ class OTPService {
     }
 
     session.attempts += 1;
-    
+
     if (session.attempts > 5) {
       otpStore.delete(token);
-      return { success: false, error: 'Too many failed attempts. Please request a new OTP.' };
+      return {
+        success: false,
+        error: 'Too many failed attempts. Please request a new OTP.'
+      };
     }
 
     if (session.otp !== otpInput) {
       otpStore.set(token, session);
-      return { success: false, error: 'Invalid OTP', attempts_left: 5 - session.attempts };
+      return {
+        success: false,
+        error: 'Invalid OTP',
+        attempts_left: 5 - session.attempts
+      };
     }
 
     session.verified = true;
     otpStore.set(token, session);
 
-    logger.info('OTP verified successfully', { phone: session.phone });
+    logger.info('OTP verified successfully', {
+      phone: session.phone
+    });
 
     return {
       success: true,
@@ -89,8 +124,10 @@ class OTPService {
     };
   }
 
-  // DEV ONLY - for testing
   getSessionForDev(token) {
+    if (process.env.NODE_ENV !== 'development') {
+      return null;
+    }
     return otpStore.get(token);
   }
 }

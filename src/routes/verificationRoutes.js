@@ -40,16 +40,38 @@ router.post(
 router.get('/session/:token/liveness/challenge', verificationController.getLivenessChallenge);
 
 // POST /api/verify/session/:token/liveness
+// router.post(
+//   '/session/:token/liveness',
+//   [
+//     param('token').notEmpty(),
+//     body('frame_base64').notEmpty(),
+//   ],
+//   validate,
+//   verificationController.submitLiveness
+// );
 router.post(
   '/session/:token/liveness',
   [
     param('token').notEmpty(),
-    body('frame_base64').notEmpty(),
+    body('frame_base64').notEmpty().withMessage('frame_base64 is required'),
+    body('nonce').notEmpty().withMessage('nonce is required'),
+    body('completed_sequence')
+      .isArray({ min: 3, max: 3 })
+      .withMessage('completed_sequence must be an array of exactly 3 steps'),
+    body('frame_timestamps_ms')
+      .isArray({ min: 6 })
+      .withMessage('frame_timestamps_ms must be an array of at least 6 timestamps'),
+    body('entropy').isObject().withMessage('entropy must be an object'),
+    body('entropy.brightnessVariance').isFloat({ min: 0 }).withMessage('entropy.brightnessVariance required'),
+    body('entropy.noiseVariance').isFloat({ min: 0 }).withMessage('entropy.noiseVariance required'),
+    body('entropy.headStabilityVariance').isFloat({ min: 0 }).withMessage('entropy.headStabilityVariance required'),
+    body('entropy.earMicroVariance').isFloat({ min: 0 }).withMessage('entropy.earMicroVariance required'),
+    body('entropy.blinkLatencyMs').isFloat({ min: 0 }).withMessage('entropy.blinkLatencyMs required'),
+    body('entropy.turnLatencyMs').isFloat({ min: 0 }).withMessage('entropy.turnLatencyMs required'),
   ],
   validate,
   verificationController.submitLiveness
 );
-
 
 // POST /api/verify/session/:token/voice/start
 router.post('/session/:token/voice/start', verificationController.startVoice);

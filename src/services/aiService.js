@@ -89,19 +89,73 @@ async function submitVerificationFrame(sessionId, frameBase64) {
  * Finalize liveness session.
  * If AI_ENABLED=false, returns a mock verified=true result.
  */
-async function completeVerification(sessionId) {
+/**
+ * Called after all 3 steps pass in completeSession.
+ * Replaces the old /verify/complete call (which doesn't exist).
+ *
+ * Pulls real scores out of the stored session data and sends them
+ * to FastAPI's /vendor/vault-score endpoint.
+ *
+ * @param {string} sessionId
+ * @param {object} sessionData  — session.data from verificationRepo
+ */
+async function completeVerification(sessionId, sessionData) {
   if (!isAiEnabled()) {
-    logger.info('AI disabled — returning mock verification complete result', { session_id: sessionId });
-    return { success: true, data: mockVerificationComplete() };
+    logger.info('AI disabled — returning mock vault score', { session_id: sessionId });
+    return { success: true, data: mockVaultScore() };
   }
 
+  // ── Extract real values from stored session results ───────────────────────
+
+  // Identity: identity_score is 0-100 from ShuftiPro (_calculate_identity_score)
+  const identityScore = sessionData?.identity?.identity_score ?? 0;
+
+  // Liveness: scores object returned by LivenessResult
+  // scores.liveness_confidence is the float you want (0-1)
+  const livenessConfidence = sessionData?.liveness?.scores?.liveness_confidence ?? 0;
+
+  // Voice: confidence_score is the raw float (0-1) from VoiceChallengeVerifyResponse
+  const voiceScore = sessionData?.voice?.confidence_score ?? 0;
+
+  logger.info('Requesting VaultScore from AI service', {
+    session_id: sessionId,
+    identity_score: identityScore,
+    liveness_confidence: livenessConfidence,
+    voice_score: voiceScore,
+  });
+
   try {
-    const response = await aiClient.post('/verify/complete', { session_id: sessionId });
+    const response = await aiClient.post('/vendor/vault-score', {
+      vendor_id: sessionId,           // use session_id as correlation key;
+      // swap for actual vendor_id if available
+      identity_score: identityScore,
+      liveness_confidence: livenessConfidence,
+      voice_score: voiceScore,
+      total_orders: 0,                // no history yet for new vendors
+      successful_deliveries: 0,
+      total_disputes: 0,
+    });
+
     return { success: true, data: response.data };
   } catch (err) {
-    logger.error('AI verification completion failed', { session_id: sessionId, error: err.message });
+    logger.error('VaultScore request failed', { session_id: sessionId, error: err.message });
     return { success: false, error: err.message };
   }
+}
+
+// ── Mock for dev/AI-disabled mode ─────────────────────────────────────────────
+function mockVaultScore() {
+  return {
+    vault_score: 72,
+    score_breakdown: {
+      identity: 40,
+      liveness: 16,
+      voice: 16,
+      transaction_history: 0,
+    },
+    trust_level: 'Moderate',
+    verified: true,
+  };
 }
 
 /**
@@ -273,13 +327,38 @@ async function submitLiveness(sessionId, payload) {
   }
 
   try {
-    const response = await aiClient.post('/vendor/liveness', {
-      session_id: sessionId,
-      ...payload,
-    });
+    const response = await aiClient.post(
+      '/vendor/liveness',
+      payload,
+      { headers: { 'X-Session-Id': sessionId } }
+    );
     return { success: true, data: response.data };
   } catch (err) {
-    logger.error('AI liveness submission failed', { session_id: sessionId, error: err.message });
+    // err.response exists when the upstream (FastAPI) responded with a non-2xx.
+    // err.response is undefined on network failures (ECONNREFUSED, timeout, etc.)
+    if (err.response) {
+      logger.error('AI liveness submission rejected by upstream', {
+        session_id: sessionId,
+        status: err.response.status,
+        error_code: err.response.data?.error_code ?? null,
+        detail: err.response.data?.detail ?? null,
+        scores: err.response.data?.scores ?? null,
+      });
+      // Forward the upstream status + body verbatim so callers can act on it
+      return {
+        success: false,
+        upstreamStatus: err.response.status,
+        upstreamBody: err.response.data,
+        error: err.message,
+      };
+    }
+
+    // Network-level failure — FastAPI never responded
+    logger.error('AI liveness submission network failure', {
+      session_id: sessionId,
+      error: err.message,
+      code: err.code ?? null,
+    });
     return { success: false, error: err.message };
   }
 }
@@ -293,6 +372,6 @@ module.exports = {
   verifyVoiceChallenge,
   verifyIdentity,
   getLivenessChallenge,   // ← add
-  submitLiveness, 
+  submitLiveness,
   isAiEnabled,
 };
