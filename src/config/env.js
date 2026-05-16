@@ -32,7 +32,7 @@ module.exports = {
     secret_key: process.env.SQUAD_SECRET_KEY,
     public_key: process.env.SQUAD_PUBLIC_KEY || '',
     base_url: process.env.SQUAD_BASE_URL,
-    webhook_secret: process.env.SQUAD_WEBHOOK_SECRET,
+    webhook_secret: process.env.SQUAD_WEBHOOK_SECRET|| 'your_squad_webhook_hmac_secret',
     // Your GTBank account where VA funds settle (required for VA creation)
     beneficiary_account: process.env.SQUAD_BENEFICIARY_ACCOUNT || '',
     merchant_id: process.env.SQUAD_MERCHANT_ID || '',
@@ -44,7 +44,7 @@ module.exports = {
   // Safe to run without the Python service running (for testing the flow end-to-end)
   ai: {
     url: process.env.AI_SERVICE_URL || 'http://107.173.51.219:8000/api/v1',
-    timeout_ms: parseInt(process.env.AI_SERVICE_TIMEOUT_MS || '5000', 10),
+    timeout_ms: parseInt(process.env.AI_SERVICE_TIMEOUT_MS || '25000', 10),
     enabled: process.env.AI_ENABLED !== 'false', // default ON; set AI_ENABLED=false to disable
   },
 

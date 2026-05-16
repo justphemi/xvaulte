@@ -67,7 +67,7 @@ router.get('/banks', vendorController.getBanks);
 // POST /api/vendors/login/request-otp
 router.post(
   '/login/request-otp',
-  strictLimiter,
+  // strictLimiter,
   [
     body('phone').trim().notEmpty().withMessage('Phone number is required').matches(/^\+?[0-9]{10,15}$/),
   ],

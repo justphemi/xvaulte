@@ -298,4 +298,80 @@ async function getTransactionByToken(req, res, next) {
   }
 }
 
-module.exports = { createEscrow, confirmDelivery, submitDispute, getTransactionByToken };
+async function getTransactionById(req, res, next) {
+  try {
+    const { id } = req.params;
+    const transaction = await transactionRepo.findById(id);
+    if (!transaction) return notFound(res, 'Transaction');
+
+    const vendor = await vendorRepo.findById(transaction.vendor_id);
+
+    return success(res, {
+      transaction_id: transaction.id,
+      escrow_status: transaction.escrow_status,
+      amount: transaction.amount,
+      item_description: transaction.item_description,
+      confirmation_token: transaction.confirmation_link_token,
+      confirmation_expires_at: transaction.confirmation_link_expires_at,
+      vendor: vendor ? {
+        business_name: vendor.business_name,
+        trust_score: vendor.trust_score,
+        score_tier: vendor.score_tier,
+        category: vendor.category,
+      } : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+// Add to escrowController.js
+async function checkPaymentStatus(req, res, next) {
+  try {
+    const { transaction_id } = req.params;
+    const transaction = await transactionRepo.findById(transaction_id);
+    
+    if (!transaction) return notFound(res, 'Transaction');
+    
+    // If already funded, just return current status
+    if (transaction.escrow_status !== 'pending') {
+      return success(res, { escrow_status: transaction.escrow_status });
+    }
+    
+    // Query Squad to check if payment was actually made
+    try {
+      const squadResponse = await squadService.checkTransactionStatus(transaction.squad_transaction_ref);
+      
+      if (squadResponse?.data?.status === 'success') {
+        // Payment was successful - update our DB
+        
+// ✅ CORRECT - single call with all three params
+await transactionRepo.setFunded(
+  transaction.id,
+  squadResponse.data.transaction_ref,
+  squadResponse.data.gateway_ref
+);
+        
+        // Send confirmation SMS to buyer
+        const vendor = await vendorRepo.findById(transaction.vendor_id);
+        await smsService.sendDeliveryConfirmationLink(
+          transaction.buyer_phone,
+          transaction.confirmation_link_token,
+          transaction.amount,
+          vendor.business_name
+        );
+        
+        return success(res, { escrow_status: 'funded', updated: true });
+      }
+    } catch (err) {
+      logger.warn('Failed to check Squad status', { transaction_id, error: err.message });
+    }
+    
+    return success(res, { escrow_status: transaction.escrow_status });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+
+module.exports = { createEscrow, confirmDelivery, submitDispute, getTransactionByToken, getTransactionById, checkPaymentStatus };

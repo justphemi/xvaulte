@@ -35,20 +35,18 @@ async function findByVaAccount(va_account) {
 }
 
 // Store both the Squad transaction ref AND the gateway_ref (needed for refunds)
-async function setFunded(id, squad_transaction_ref, squad_gateway_ref) {
-  const result = await db.query(
-    `UPDATE transactions
-     SET escrow_status = 'funded',
-         squad_transaction_ref = $1,
-         squad_gateway_ref = $2,
-         funded_at = NOW()
-     WHERE id = $3 AND escrow_status = 'pending'
+async function setFunded(transactionId, transactionRef, gatewayRef) {
+  return db.query(
+    `UPDATE transactions 
+     SET escrow_status = 'funded', 
+         squad_transaction_ref = $2,
+         squad_gateway_ref = $3,
+         updated_at = NOW()
+     WHERE id = $1
      RETURNING *`,
-    [squad_transaction_ref, squad_gateway_ref || null, id]
+    [transactionId, transactionRef, gatewayRef]
   );
-  return result.rows[0] || null;
 }
-
 async function setDeliveryConfirmed(id) {
   const result = await db.query(
     `UPDATE transactions SET escrow_status = 'delivered', confirmed_at = NOW()

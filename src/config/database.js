@@ -13,6 +13,7 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000, 
   keepAlive: true,                 
   keepAliveInitialDelayMillis: 10000, 
+  allowExitOnIdle: false,
 });
 pool.on('error', (err) => {
   logger.error('Unexpected database pool error', { error: err.message });

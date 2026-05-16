@@ -226,6 +226,38 @@ async function getBalance() {
   return response.data;
 }
 
+// FIX THIS - in squadService.js
+
+async function checkTransactionStatus(transactionRef) {
+  // Squad's transaction verification endpoint
+  const endpoint = `/transaction/verify/${transactionRef}`;
+  
+  logger.info('Verifying Squad transaction', { 
+    transaction_ref: transactionRef,
+    endpoint 
+  });
+  
+  try {
+    const response = await makeSquadRequest('GET', endpoint);
+    
+    // Log what we got back
+    logger.info('Squad verification response', {
+      transaction_ref: transactionRef,
+      status: response?.data?.transaction_status || response?.status,
+      full_response: response
+    });
+    
+    return response;
+  } catch (err) {
+    logger.error('Squad verification failed', {
+      transaction_ref: transactionRef,
+      error: err.message,
+      response_data: err.response?.data
+    });
+    throw err;
+  }
+}
+
 module.exports = {
   createVirtualAccount,
   verifyBankAccount,
@@ -237,4 +269,5 @@ module.exports = {
   simulatePayment,
   getBankList,
   getBalance,
+  checkTransactionStatus
 };

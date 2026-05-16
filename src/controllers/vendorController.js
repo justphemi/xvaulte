@@ -121,30 +121,42 @@ async function register(req, res, next) {
 async function requestOTP(req, res, next) {
   try {
     const { phone } = req.body;
-    
+
     // Validate phone number
     if (!phone || !phone.match(/^\+?[0-9]{10,15}$/)) {
       return error(res, 'Valid phone number is required', 400);
     }
-    
+
     // Check if vendor exists
     const vendor = await vendorRepo.findByPhone(phone);
+
     if (!vendor) {
-      return error(res, 'No account found with this phone number. Please register first.', 404);
+      return error(
+        res,
+        'No account found with this phone number. Please register first.',
+        404
+      );
     }
-    
-    // Send OTP
+
+    // Send OTP (OTP is hardcoded to 000000 inside service)
     const otpResult = await otpService.sendOTP(phone);
-    
+
     if (!otpResult.success) {
       return error(res, 'Failed to send OTP. Please try again.', 500);
     }
-    
-    return success(res, {
-      otp_token: otpResult.token,
-      expires_in_minutes: otpResult.expires_in_minutes,
-      phone_masked: maskPhoneNumber(phone)
-    }, 'OTP sent successfully');
+
+    return success(
+      res,
+      {
+        otp_token: otpResult.token,
+        expires_in_minutes: otpResult.expires_in_minutes,
+        phone_masked: maskPhoneNumber(phone),
+
+        // DEV ONLY
+        dev_otp: otpResult.dev_otp,
+      },
+      'OTP sent successfully'
+    );
   } catch (err) {
     next(err);
   }
@@ -153,54 +165,66 @@ async function requestOTP(req, res, next) {
 async function verifyOTPAndLogin(req, res, next) {
   try {
     const { otp_token, otp_code } = req.body;
-    
+
     // Validate inputs
     if (!otp_token || !otp_code) {
       return error(res, 'OTP token and code are required', 400);
     }
-    
+
     if (!otp_code.match(/^\d{6}$/)) {
       return error(res, 'OTP code must be 6 digits', 400);
     }
-    
-    // Verify OTP
-    const verification = await otpService.verifyOTP(otp_token, otp_code);
-    
-    // if (!verification.success) {
-    //   return error(res, verification.error, 401);
-    // }
-    
+
+    // Since OTP is hardcoded to 000000
+    if (otp_code !== '000000') {
+      return error(res, 'Invalid OTP', 401);
+    }
+
+    // Get stored OTP session
+    const session = otpService.getSessionForDev(otp_token);
+
+    if (!session) {
+      return error(res, 'OTP session not found or expired', 404);
+    }
+
     // Get vendor by phone
-    const vendor = await vendorRepo.findByPhone(verification.phone);
+    const vendor = await vendorRepo.findByPhone(session.phone);
+
     if (!vendor) {
       return error(res, 'Vendor account not found', 404);
     }
-    
-    // Generate new JWT token
+
+    // Generate JWT token
     const token = jwt.sign({ vendor_id: vendor.id });
-    
-    // Get fresh vendor data with all fields
+
+    // Get fresh vendor data
     const fullVendor = await vendorRepo.findById(vendor.id);
-    
-    logger.info('Vendor logged in', { vendor_id: vendor.id, phone: verification.phone });
-    
-    return success(res, {
-      vendor: {
-        id: fullVendor.id,
-        business_name: fullVendor.business_name,
-        category: fullVendor.category,
-        trust_score: fullVendor.trust_score,
-        score_tier: fullVendor.score_tier,
-        verification_status: fullVendor.verification_status,
-        payout_verified: fullVendor.payout_verified
+
+    logger.info('Vendor logged in', {
+      vendor_id: vendor.id,
+      phone: session.phone,
+    });
+
+    return success(
+      res,
+      {
+        vendor: {
+          id: fullVendor.id,
+          business_name: fullVendor.business_name,
+          category: fullVendor.category,
+          trust_score: fullVendor.trust_score,
+          score_tier: fullVendor.score_tier,
+          verification_status: fullVendor.verification_status,
+          payout_verified: fullVendor.payout_verified,
+        },
+        token,
       },
-      token
-    }, 'Login successful');
+      'Login successful'
+    );
   } catch (err) {
     next(err);
   }
 }
-
 // Helper function to mask phone number for display
 function maskPhoneNumber(phone) {
   if (!phone) return '';
