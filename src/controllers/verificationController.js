@@ -722,6 +722,16 @@ async function completeSession(req, res, next) {
     const identityPassed = session.data?.identity?.identity_passed === true;
     const livenessPassed = session.data?.liveness?.liveness_passed === true;
     const voicePassed = session.data?.voice?.voice_passed === true;
+    logger.info('completeSession — session.data contents', {
+      session_id: session.id,
+      has_identity: !!session.data?.identity,
+      identity_passed: session.data?.identity?.identity_passed,
+      has_liveness: !!session.data?.liveness,
+      liveness_passed: session.data?.liveness?.liveness_passed,
+      has_voice: !!session.data?.voice,
+      voice_passed: session.data?.voice?.voice_passed,
+      raw_data_keys: Object.keys(session.data ?? {}),
+    });
 
     if (!identityPassed) return error(res, 'Identity verification has not been completed', 400);
     if (!livenessPassed) return error(res, 'Liveness check has not been completed', 400);
