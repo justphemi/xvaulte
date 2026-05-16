@@ -776,25 +776,25 @@ async function completeSession(req, res, next) {
     }
 
     // ── Fire webhook (non-blocking) ───────────────────────────────────────
-    const partner = await db.query(
-      'SELECT webhook_url, webhook_secret FROM b2b_partners WHERE id = $1',
-      [session.partner_id]
-    );
-    if (partner.rowCount > 0 && partner.rows[0].webhook_url) {
-      webhookService.sendWebhook(
-        partner.rows[0].webhook_url,
-        partner.rows[0].webhook_secret,
-        'verification.completed',
-        {
-          session_id: session.id,
-          external_user_id: session.external_user_id,
-          status: resultData.status,
-          result: resultData,
-        }
-      ).catch(err =>
-        logger.error('Webhook dispatch failed', { session_id: session.id, error: err.message })
-      );
-    }
+    // const partner = await db.query(
+    //   'SELECT webhook_url, webhook_secret FROM b2b_partners WHERE id = $1',
+    //   [session.partner_id]
+    // );
+    // if (partner.rowCount > 0 && partner.rows[0].webhook_url) {
+    //   webhookService.sendWebhook(
+    //     partner.rows[0].webhook_url,
+    //     partner.rows[0].webhook_secret,
+    //     'verification.completed',
+    //     {
+    //       session_id: session.id,
+    //       external_user_id: session.external_user_id,
+    //       status: resultData.status,
+    //       result: resultData,
+    //     }
+    //   ).catch(err =>
+    //     logger.error('Webhook dispatch failed', { session_id: session.id, error: err.message })
+    //   );
+    // }
 
     return success(res, resultData, 'Verification completed successfully');
   } catch (err) {
