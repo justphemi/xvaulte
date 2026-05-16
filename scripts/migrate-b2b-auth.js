@@ -1,4 +1,4 @@
-/**
+sim/**
  * MIGRATION: Add auth columns to b2b_partners
  * Run: node scripts/migrate-b2b-auth.js
  */

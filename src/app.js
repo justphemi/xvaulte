@@ -14,6 +14,7 @@ const escrowRoutes = require('./routes/escrowRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
 const b2bRoutes = require('./routes/b2bRoutes');
 const verificationRoutes = require('./routes/verificationRoutes');
+const testRoutes = require('./routes/testRoutes');
 
 const app = express();
 
@@ -96,6 +97,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/commerce', require('./routes/commerceRoutes'));
 app.use('/api/escrow', escrowRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/test', testRoutes);
 
 // B2B API — versioned under /v1
 app.use('/v1/developer', require('./routes/developerAuthRoutes'));

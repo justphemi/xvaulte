@@ -229,30 +229,22 @@ async function getBalance() {
 // FIX THIS - in squadService.js
 
 async function checkTransactionStatus(transactionRef) {
-  // Squad's transaction verification endpoint
-  const endpoint = `/transaction/verify/${transactionRef}`;
-  
-  logger.info('Verifying Squad transaction', { 
-    transaction_ref: transactionRef,
-    endpoint 
-  });
-  
+  logger.info('Verifying Squad transaction', { transaction_ref: transactionRef });
+
   try {
-    const response = await makeSquadRequest('GET', endpoint);
-    
-    // Log what we got back
+    // ✅ FIX: use squadClient.get, not the non-existent makeSquadRequest
+    const response = await squadClient.get(`/transaction/verify/${transactionRef}`);
+
     logger.info('Squad verification response', {
       transaction_ref: transactionRef,
-      status: response?.data?.transaction_status || response?.status,
-      full_response: response
+      status: response?.data?.data?.transaction_status,
     });
-    
-    return response;
+
+    return response.data;
   } catch (err) {
     logger.error('Squad verification failed', {
       transaction_ref: transactionRef,
       error: err.message,
-      response_data: err.response?.data
     });
     throw err;
   }

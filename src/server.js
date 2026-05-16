@@ -114,7 +114,7 @@ cron.schedule('*/15 * * * *', async () => {
           bank_code: vendor.squad_payout_bank_code,
           account_name: vendor.business_name,
           narration: `Vaulte auto-release after ${env.escrow.auto_confirm_hours}h — ${tx.item_description}`,
-          reference: `autorelease_${tx.id}`,
+          reference: `aut${tx.id.replace(/-/g, '').slice(0, 9)}`,
         });
 
         await transactionRepo.setDeliveryConfirmed(tx.id);

@@ -135,26 +135,29 @@ async function confirmDelivery(req, res, next) {
     const vendor = await vendorRepo.findById(transaction.vendor_id);
     if (!vendor) return notFound(res, 'Vendor');
 
-    await transactionRepo.setDeliveryConfirmed(transaction.id);
-
     if (env.squad.skip_bank_verification) {
-      // DEV MODE — mock fund release
       logger.warn('DEV MODE: Mocking fund release', { transaction_id: transaction.id });
+      await transactionRepo.setDeliveryConfirmed(transaction.id);
       await transactionRepo.setReleased(transaction.id);
     } else {
       try {
+        // ✅ FIX 1: Transfer FIRST — don't mutate status until it succeeds
+        // ✅ FIX 2: Strip hyphens — Squad rejects them in transaction_reference
         await squadService.transferFunds({
           amount: transaction.amount,
           account_number: vendor.squad_payout_account,
           bank_code: vendor.squad_payout_bank_code,
           account_name: vendor.business_name,
-          narration: `Vaulte escrow release — ${transaction.item_description}`,
-          reference: `release_${transaction.id}`,
+          narration: `Vaulte escrow release - ${transaction.item_description}`,
+          reference: `REL${Date.now()}${Math.floor(Math.random() * 1000)}`
         });
+        // Only update status after Squad confirms success
+        await transactionRepo.setDeliveryConfirmed(transaction.id);
         await transactionRepo.setReleased(transaction.id);
       } catch (err) {
         logger.error('Fund release failed', { transaction_id: transaction.id, error: err.message });
-        return error(res, 'Delivery confirmed but fund release failed. Support has been notified.', 502);
+        // Status remains 'funded' — buyer can retry
+        return error(res, 'Fund release failed. Please try again.', 502);
       }
     }
 
