@@ -99,6 +99,18 @@ async function listVerified({ badge, category, location_state, page = 1, limit =
   return result.rows;
 }
 
+
+async function updateTrustScore(vendorId, { trust_score, score_tier, verification_status }) {
+  const result = await db.query(
+    `UPDATE vendors
+     SET trust_score = $1, score_tier = $2, verification_status = $3, updated_at = NOW()
+     WHERE id = $4
+     RETURNING id, trust_score, score_tier, verification_status`,
+    [trust_score, score_tier, verification_status, vendorId]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   create,
   findById,
@@ -108,4 +120,5 @@ module.exports = {
   freezeScore,
   getScoreHistory,
   listVerified,
+  updateTrustScore,
 };

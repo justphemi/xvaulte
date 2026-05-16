@@ -355,6 +355,7 @@ const { success, created, error, notFound } = require('../utils/response');
 const { generateToken } = require('../utils/crypto');
 const db = require('../config/database');
 const verificationRepo = require('../repositories/verificationRepository');
+const vendorRepo = require('../repositories/vendorRepository');
 const aiService = require('../services/aiService');
 const webhookService = require('../services/webhookService');
 const logger = require('../utils/logger');
