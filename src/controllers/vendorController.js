@@ -166,56 +166,52 @@ async function verifyOTPAndLogin(req, res, next) {
   try {
     const { otp_token, otp_code } = req.body;
 
-    // Validate inputs
     if (!otp_token || !otp_code) {
       return error(res, 'OTP token and code are required', 400);
     }
 
-    if (!otp_code.match(/^\d{6}$/)) {
-      return error(res, 'OTP code must be 6 digits', 400);
+    // REAL OTP VERIFICATION
+    const verifyResult = await otpService.verifyOTP(
+      otp_token,
+      otp_code
+    );
+
+    if (!verifyResult.success) {
+      return error(res, verifyResult.error, 401);
     }
 
-    // Since OTP is hardcoded to 000000
-    if (otp_code !== '000000') {
-      return error(res, 'Invalid OTP', 401);
-    }
-
-    // Get stored OTP session
-    const session = otpService.getSessionForDev(otp_token);
-
-    if (!session) {
-      return error(res, 'OTP session not found or expired', 404);
-    }
-
-    // Get vendor by phone
-    const vendor = await vendorRepo.findByPhone(session.phone);
+    // Find vendor
+    const vendor = await vendorRepo.findByPhone(
+      verifyResult.phone
+    );
 
     if (!vendor) {
       return error(res, 'Vendor account not found', 404);
     }
 
-    // Generate JWT token
-    const token = jwt.sign({ vendor_id: vendor.id });
-
-    // Get fresh vendor data
-    const fullVendor = await vendorRepo.findById(vendor.id);
+    // Generate JWT
+    const token = jwt.sign({
+      vendor_id: vendor.id,
+    });
 
     logger.info('Vendor logged in', {
       vendor_id: vendor.id,
-      phone: session.phone,
+      phone: verifyResult.phone,
     });
 
     return success(
       res,
       {
         vendor: {
-          id: fullVendor.id,
-          business_name: fullVendor.business_name,
-          category: fullVendor.category,
-          trust_score: fullVendor.trust_score,
-          score_tier: fullVendor.score_tier,
-          verification_status: fullVendor.verification_status,
-          payout_verified: fullVendor.payout_verified,
+          id: vendor.id,
+          business_name: vendor.business_name,
+          category: vendor.category,
+          trust_score: vendor.trust_score,
+          score_tier: vendor.score_tier,
+          verification_status:
+            vendor.verification_status,
+          payout_verified:
+            vendor.payout_verified,
         },
         token,
       },
@@ -225,6 +221,7 @@ async function verifyOTPAndLogin(req, res, next) {
     next(err);
   }
 }
+
 // Helper function to mask phone number for display
 function maskPhoneNumber(phone) {
   if (!phone) return '';

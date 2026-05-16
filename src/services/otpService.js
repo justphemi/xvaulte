@@ -78,6 +78,7 @@ class OTPService {
 
   async verifyOTP(token, otpInput) {
     const session = otpStore.get(token);
+    
 
     if (!session) {
       return { success: false, error: 'OTP session not found or expired' };
