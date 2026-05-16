@@ -1,4 +1,4 @@
-# Vaulte AI Integration — Endpoint Guide for AI/ML Service
+# Benchmark AI Integration — Endpoint Guide for AI/ML Service
 
 This document summarizes all backend endpoints and flows that interact with the AI microservice so you can integrate, implement, or adapt the Python FastAPI service cleanly.
 
@@ -337,6 +337,6 @@ This document should be used as the contract between the Node.js backend and the
 # vibes
 # vibes
 # justvibez
-# xvaulte
-# xvaulte
-# xvaulte
+# xBenchmark
+# xBenchmark
+# xBenchmark
