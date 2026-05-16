@@ -771,7 +771,7 @@ async function completeSession(req, res, next) {
       await vendorRepo.updateTrustScore(session.external_user_id ?? session.id, {
         trust_score: vaultScore,
         score_tier: trustLevel,
-        verification_status: 'verified',
+        verification_status: 'passed',
       });
     }
 
